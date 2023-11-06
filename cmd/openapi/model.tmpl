@@ -1,9 +1,0 @@
-package {{ .Package }}
-
-{{ range .Schemas }}
-    type {{ .Name }} struct {
-    {{ range .Fields }}{{ .GoName }} {{ .GoType }} `json:"{{ .Name }}"{{ if .Required }} required:"true"{{ end }}`
-    {{ end }}
-    }
-{{ end }}
-
