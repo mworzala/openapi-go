@@ -1,0 +1,13 @@
+// Code generated with openapi-go DO NOT EDIT.
+package {{ .Package }}
+
+import "github.com/mworzala/openapi-go/pkg/oapi-rt"
+
+{{ range .Schemas }}
+    {{ with .Struct }}
+        type {{ .Name }} struct {
+        {{ range .Fields }}{{ SnakeToPascal .Name }} {{ .Type }} `json:"{{ .Name }}"`
+        {{ end }}
+        }
+    {{ end }}
+{{ end }}

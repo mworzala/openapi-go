@@ -1,0 +1,83 @@
+openapi: 3.0.2
+info:
+  title: Map Service Public API
+  version: "1"
+paths:
+  /maps/{id}/world:
+    get:
+      operationId: getMapWorld
+      summary: Fetch a map world by ID
+      description: long description TODO
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MapManualTriggerWebhook'
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the map to fetch
+          required: true
+          schema:
+            type: string
+        - name: abc
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: accept
+          in: header
+          description: >-
+            The content type (world format) to return, defaults to Anvil (latest).
+          required: false
+          schema:
+            type: string
+            enum:
+              - application/vnd.hollowcube.polar
+              - application/vnd.hollowcube.anvil
+      responses:
+        '200':
+          x-type: success # indicates that this is a success response
+          description: The raw map world data
+          content:
+            application/vnd.hollowcube.polar:
+              schema:
+                type: string
+                format: binary
+            application/vnd.hollowcube.anvil:
+              schema:
+                type: string
+                format: binary
+        '201':
+          x-type: success # indicates that this is a success response
+          description: The raw map world data
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MapManualTriggerWebhook' }
+        '204':
+          x-type: empty # indicates that this is the empty response (null was returned)
+          description: No map world present (not generated yet)
+        '404':
+          description: Map not found
+
+components:
+  schemas:
+    MapManualTriggerWebhook:
+      description: >-
+        A webhook payload when a map manual trigger is pressed in an organization map.
+      type: object
+      properties:
+        sender:
+          description: The UUID of the user who triggered the event
+          type: string
+        orgId:
+          description: The ID of the organization who owns the map
+          type: string
+        mapId:
+          description: The ID of the map
+          type: string
+        timestamp:
+          description: The timestamp of the event in iso format
+          type: string
+          format: date-time

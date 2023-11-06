@@ -1,0 +1,26 @@
+openapi: 3.0.2
+info:
+  title: Error models
+  version: 1.0.0
+paths: {}
+
+components:
+  schemas:
+    ErrorResponse:
+      description: Universal response for errors. Always used no matter the expected content type
+      oneOf:
+        - $ref: '#/components/schemas/ErrorData'
+        - type: array
+          items:
+            $ref: '#/components/schemas/ErrorData'
+    ErrorData:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Application error code to be interpreted by the receiver.
+          example: 400
+        message:
+          type: string
+          description: Friendly message for the sender
+          example: Invalid input
