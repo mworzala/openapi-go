@@ -53,10 +53,12 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter,
     }{{ end }}{{ end }}
 
     // Read Parameters
-    {{ range .PathParams }}{{ .Name }} := chi.URLParam(r, "{{ .Name }}"){{ end }}
-    {{ range .QueryParams }}{{ .Name }} := r.URL.Query().Get("{{ .Name }}"){{ end }}
-    {{ range .HeaderParams }}{{ DashToCamel .Name }} := r.Header.Get("{{ .Name }}"){{ end }}
-
+    {{ range .PathParams }}{{ .Name }} := chi.URLParam(r, "{{ .Name }}")
+    {{ end }}
+    {{ range .QueryParams }}{{ .Name }} := r.URL.Query().Get("{{ .Name }}")
+    {{ end }}
+    {{ range .HeaderParams }}{{ DashToCamel .Name }} := r.Header.Get("{{ .Name }}")
+    {{ end }}
     {{ with .Body }}// Read Body
     var body {{ NoPtr .GoType }}
     if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
