@@ -64,14 +64,15 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter,
     {{ end }}
     {{ with .Body }}// Read Body
     var body {{ NoPtr .GoType }}
-    if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+    {{ if .IsRaw }}var err error
+    if body, err = io.ReadAll(r.Body); err != nil {{ else }}if err := json.NewDecoder(r.Body).Decode(&body); err != nil {{ end }}{
         oapi_rt.WriteGenericError(w, err)
         return
     }{{ end }}
 
     var handler http.Handler
     handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        {{ with .Response }}{{ range .Cases }}{{ .Name }}, {{ end }}{{ end }}err := sw.handler.{{ SnakeToPascal .Name }}(r.Context(), {{ range .PathParams }}{{ .Name }}, {{ end }}{{ range .QueryParams }}{{ .Name }}, {{ end }}{{ range .HeaderParams }}{{ DashToCamel .Name }}, {{ end }}{{ if .Body }}&body{{ end }})
+        {{ with .Response }}{{ range .Cases }}{{ .Name }}, {{ end }}{{ end }}err := sw.handler.{{ SnakeToPascal .Name }}(r.Context(), {{ range .PathParams }}{{ .Name }}, {{ end }}{{ range .QueryParams }}{{ .Name }}, {{ end }}{{ range .HeaderParams }}{{ DashToCamel .Name }}, {{ end }}{{ with .Body }}{{ if not .IsRaw }}&{{ end }}body{{ end }})
         if err != nil {
             oapi_rt.WriteGenericError(w, err)
             return

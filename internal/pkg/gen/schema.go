@@ -46,8 +46,18 @@ func (g *Generator) resolveSchemaToType(schema *oapi.SchemaOrRef) (string, error
 			}
 		}
 		return goType, nil
+	case "number":
+		goType := "float64"
+		return goType, nil
+	case "array":
+		ty, err := g.resolveSchemaToType(schema.Items)
+		if err != nil {
+			return "", fmt.Errorf("failed to resolve array type: %w", err)
+		}
+
+		return "[]" + ty, nil
 	default:
-		panic("unsupported schema type: " + schema.Type)
+		panic("unsupported schema type 2: " + schema.Type)
 	}
 
 	//todo
@@ -81,6 +91,13 @@ func (g *Generator) genSingleSchema(shortName string, schema *oapi.SchemaOrRef) 
 			Name: goType,
 			Type: goType,
 		}
+	case "number":
+		goType := "float64"
+		result.Name = goType
+		result.Primitive = &PrimitiveTemplate{
+			Name: goType,
+			Type: goType,
+		}
 	case "object":
 		// Special case: if object with no fields and additionalProperties=true, use a Go `any` type.
 		if len(schema.Properties) == 0 && schema.AdditionalProperties {
@@ -94,14 +111,14 @@ func (g *Generator) genSingleSchema(shortName string, schema *oapi.SchemaOrRef) 
 
 		var fields []*FieldTemplate
 		for _, field := range schema.Properties {
-			ty, err := g.genSingleSchema("", field.Value)
+			ty, err := g.resolveSchemaToType(field.Value)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate field %s.%s: %w", shortName, field.Name, err)
 			}
 
 			fields = append(fields, &FieldTemplate{
 				Name: field.Name,
-				Type: ty.Name,
+				Type: ty,
 			})
 		}
 

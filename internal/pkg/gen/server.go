@@ -36,6 +36,7 @@ type OperationTemplate struct {
 
 type RequestBodyTemplate struct {
 	GoType string
+	IsRaw  bool
 }
 
 type ParamTemplate struct {
@@ -100,18 +101,25 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 
 	if op.RequestBody != nil {
 		for _, content := range op.RequestBody.Content {
-			if content.Name != "application/json" {
-				panic("only json body supported.")
+			if content.Name == "application/json" {
+				bodyStructName := fmt.Sprintf("%sRequest", util.SnakeToPascalCase(result.Name))
+				s, err := g.genSingleSchema(bodyStructName, content.Value.Schema)
+				if err != nil {
+					panic(err)
+				}
+				g.schemas[bodyStructName] = s
+				result.Body = &RequestBodyTemplate{}
+				result.Body.GoType = s.GoType
+			} else {
+				ty, err := g.resolveSchemaToType(content.Value.Schema)
+				if err != nil {
+					panic(err)
+				}
+				result.Body = &RequestBodyTemplate{}
+				result.Body.GoType = ty
+				result.Body.IsRaw = true
 			}
 
-			bodyStructName := fmt.Sprintf("%sRequest", util.SnakeToPascalCase(result.Name))
-			s, err := g.genSingleSchema(bodyStructName, content.Value.Schema)
-			if err != nil {
-				panic(err)
-			}
-			g.schemas[bodyStructName] = s
-			result.Body = &RequestBodyTemplate{}
-			result.Body.GoType = s.GoType
 		}
 	}
 
