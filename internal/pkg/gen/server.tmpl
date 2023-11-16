@@ -26,12 +26,15 @@ type {{ $WRAPPER_CLASS }}Params struct {
     {{ end }}
     Log     *zap.SugaredLogger
     Handler {{ SnakeToPascal .Name }}Server
+
+    Middleware []oapi_rt.Middleware{{if .UseFx }} `group:"{{ .Name }}_middleware"`{{ end }}
 }
 
 func New{{ $WRAPPER_CLASS }}(p {{ $WRAPPER_CLASS }}Params) (*{{ $WRAPPER_CLASS }}, error) {
     sw := &{{ $WRAPPER_CLASS }}{
         log: p.Log.With("handler", "{{ .Name }} (wrapper)"),
         handler: p.Handler,
+        middlewares: p.Middleware,
     }
 
     return sw, nil

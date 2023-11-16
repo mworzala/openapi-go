@@ -27,12 +27,15 @@ type TerraformServerWrapperParams struct {
 
 	Log     *zap.SugaredLogger
 	Handler TerraformServer
+
+	Middleware []oapi_rt.Middleware `group:"terraform_middleware"`
 }
 
 func NewTerraformServerWrapper(p TerraformServerWrapperParams) (*TerraformServerWrapper, error) {
 	sw := &TerraformServerWrapper{
-		log:     p.Log.With("handler", "terraform (wrapper)"),
-		handler: p.Handler,
+		log:         p.Log.With("handler", "terraform (wrapper)"),
+		handler:     p.Handler,
+		middlewares: p.Middleware,
 	}
 
 	return sw, nil
