@@ -162,7 +162,7 @@ func (g *Generator) flush() {
 	// Write the server to server file
 	serverFile := path.Join(g.pwd, fmt.Sprintf("%s_server.gen.go", g.specName))
 	serverContext := &ServerTemplate{
-		Package: "v1", Name: g.specName,
+		Package: g.apiVersion, Name: g.specName,
 		BasePath: fmt.Sprintf("/%s/internal", g.apiVersion), Operations: g.operations, UseFx: true}
 	if err := execTemplateToFile(g.serverTemplate, serverContext, serverFile); err != nil {
 		panic(fmt.Errorf("failed to execute server template: %w", err))
