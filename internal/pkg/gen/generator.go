@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"text/template"
 
 	"github.com/mworzala/openapi-go/internal/pkg/util"
@@ -44,8 +45,9 @@ type Generator struct {
 	// Single spec processing state
 
 	// The spec currently being processed
-	spec     *oapi.Spec
-	specName string
+	spec       *oapi.Spec
+	specName   string
+	apiVersion string
 	// Set of schemas to be emitted (by absolute path from file, eg #/components/schemas/MySchema)
 	schemas    map[string]*SchemaTemplate
 	operations []*OperationTemplate
@@ -74,7 +76,14 @@ func New() (*Generator, error) {
 
 func (g *Generator) GenSpecSingle(name string, spec *oapi.Spec) {
 	defer g.flush()
-	g.specName = name
+
+	if strings.HasSuffix(name, "_v2") {
+		g.specName = strings.TrimSuffix(name, "_v2")
+		g.apiVersion = "v2"
+	} else {
+		g.specName = name
+		g.apiVersion = "v1"
+	}
 	g.spec = spec
 
 	// Generate server
@@ -154,7 +163,7 @@ func (g *Generator) flush() {
 	serverFile := path.Join(g.pwd, fmt.Sprintf("%s_server.gen.go", g.specName))
 	serverContext := &ServerTemplate{
 		Package: "v1", Name: g.specName,
-		BasePath: "/v1/internal", Operations: g.operations, UseFx: true}
+		BasePath: fmt.Sprintf("/%s/internal", g.apiVersion), Operations: g.operations, UseFx: true}
 	if err := execTemplateToFile(g.serverTemplate, serverContext, serverFile); err != nil {
 		panic(fmt.Errorf("failed to execute server template: %w", err))
 	}
