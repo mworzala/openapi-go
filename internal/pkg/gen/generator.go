@@ -175,7 +175,7 @@ func (g *Generator) flush() {
 	}
 
 	modelFile := path.Join(g.pwd, fmt.Sprintf("%s_model.gen.go", g.specName))
-	context := &ModelTemplate{Package: "v1", Schemas: schemas}
+	context := &ModelTemplate{Package: g.apiVersion, Schemas: schemas}
 	if err := execTemplateToFile(g.modelTemplate, context, modelFile); err != nil {
 		panic(fmt.Errorf("failed to execute model template: %w", err))
 	}
