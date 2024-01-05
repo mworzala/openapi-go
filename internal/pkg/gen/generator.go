@@ -50,6 +50,7 @@ type Generator struct {
 	apiVersion string
 	// Set of schemas to be emitted (by absolute path from file, eg #/components/schemas/MySchema)
 	schemas    map[string]*SchemaTemplate
+	schemas2   oapi.MapSlice[TypeInfo]
 	operations []*OperationTemplate
 }
 
@@ -70,7 +71,8 @@ func New() (*Generator, error) {
 		modelTemplate:  modelTemplate,
 		serverTemplate: serverTemplate,
 
-		schemas: make(map[string]*SchemaTemplate),
+		schemas:  make(map[string]*SchemaTemplate),
+		schemas2: make(oapi.MapSlice[TypeInfo], 0),
 	}, nil
 }
 
@@ -90,6 +92,9 @@ func (g *Generator) GenSpecSingle(name string, spec *oapi.Spec) {
 	for _, specOp := range spec.Paths {
 		if specOp.Value == nil {
 			panic("missing value!!")
+		}
+		if specOp.Value.IsEmpty() {
+			continue
 		}
 
 		if specOp.Value.Get != nil {
@@ -145,33 +150,39 @@ func (g *Generator) GenSpecSingle(name string, spec *oapi.Spec) {
 	// Append any models which were not referenced from the spec
 	for _, schema := range g.spec.Components.Schemas {
 		fullName := fmt.Sprintf("#/components/schemas/%s", schema.Name)
-		if _, ok := g.schemas[fullName]; ok {
+		if _, ok := g.schemas2.Get(fullName); ok {
 			continue // Already generated, skip
 		}
 
-		var err error
-		g.schemas[fullName], err = g.genSingleSchema(schema.Name, schema.Value)
+		ti, err := g.resolveSchema(schema.Value, schema.Name, false)
 		if err != nil {
 			panic(fmt.Errorf("failed to generate schema %s: %w", schema.Name, err))
 		}
+		g.schemas2 = g.schemas2.With(fullName, ti)
 	}
 }
 
 func (g *Generator) flush() {
 
+	// Path name override
+	basePath := "/" + g.specName
+	if g.spec.Info.BasePath != nil {
+		basePath = *g.spec.Info.BasePath
+	}
+
 	// Write the server to server file
 	serverFile := path.Join(g.pwd, fmt.Sprintf("%s_server.gen.go", g.specName))
 	serverContext := &ServerTemplate{
 		Package: g.apiVersion, Name: g.specName,
-		BasePath: fmt.Sprintf("/%s/internal", g.apiVersion), Operations: g.operations, UseFx: true}
+		BasePath: fmt.Sprintf("/%s%s", g.apiVersion, basePath), Operations: g.operations, UseFx: true}
 	if err := execTemplateToFile(g.serverTemplate, serverContext, serverFile); err != nil {
 		panic(fmt.Errorf("failed to execute server template: %w", err))
 	}
 
 	// Write models to model file
-	schemas := make([]*SchemaTemplate, 0, len(g.schemas))
-	for _, schema := range g.schemas {
-		schemas = append(schemas, schema)
+	schemas := make([]*TypeInfo, 0, len(g.schemas2))
+	for _, schema := range g.schemas2 {
+		schemas = append(schemas, schema.Value)
 	}
 
 	modelFile := path.Join(g.pwd, fmt.Sprintf("%s_model.gen.go", g.specName))
@@ -185,6 +196,11 @@ func (g *Generator) flush() {
 	g.specName = ""
 	g.schemas = make(map[string]*SchemaTemplate)
 	g.operations = nil
+
+	// Some fun stats
+	println("Generated", serverContext.BasePath)
+	println("Total operations:", len(serverContext.Operations))
+	println("Total schemas:", len(schemas))
 }
 
 func execTemplateToFile(t *template.Template, context interface{}, fileName string) error {
@@ -210,6 +226,9 @@ func execTemplateToFile(t *template.Template, context interface{}, fileName stri
 	if _, err = f.Write(formatted); err != nil {
 		return fmt.Errorf("failed to write file data %s: %w", fileName, err)
 	}
+	//if _, err = f.Write(out.Bytes()); err != nil {
+	//	return fmt.Errorf("failed to write file data %s: %w", fileName, err)
+	//}
 
 	// Run goimports (todo i would like this to not break without it installed)
 	cmd := exec.Command("goimports", "-w", fileName)
@@ -219,14 +238,3 @@ func execTemplateToFile(t *template.Template, context interface{}, fileName stri
 
 	return nil
 }
-
-/*
-Steps for each file
-1. read/parse file
-2. Emit server boilerplate
-  a. during this, models will be added to the list of exported models
-3. Emit each model
-
-
-
-*/

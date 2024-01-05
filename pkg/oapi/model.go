@@ -1,5 +1,7 @@
 package oapi
 
+import "gopkg.in/yaml.v3"
+
 type Spec struct {
 	Version    string             `yaml:"openapi"` // Required
 	Info       *Info              `yaml:"info"`    // Required
@@ -15,7 +17,7 @@ type Info struct {
 	Title   string `yaml:"title"`   // Required
 	Version string `yaml:"version"` // Required
 
-	BasePath string `yaml:"x-base-path"`
+	BasePath *string `yaml:"x-base-path"`
 }
 
 //
@@ -29,6 +31,11 @@ type PathItem struct {
 	Delete *Operation `yaml:"delete"`
 	Patch  *Operation `yaml:"patch"`
 	Trace  *Operation `yaml:"trace"`
+}
+
+func (p PathItem) IsEmpty() bool {
+	return p.Get == nil && p.Put == nil && p.Post == nil &&
+		p.Delete == nil && p.Patch == nil && p.Trace == nil
 }
 
 //
@@ -52,6 +59,9 @@ type (
 		In       string  `yaml:"in"`   // Required, todo enum of "query", "header", "path" or "cookie"
 		Required bool    `yaml:"required"`
 		Schema   *Schema `yaml:"schema"`
+
+		// Query only
+		Explode bool `yaml:"explode"`
 	}
 )
 
@@ -71,7 +81,7 @@ type (
 )
 
 type MediaType struct {
-	Schema *SchemaOrRef `yaml:"schema"`
+	Schema *AnySchema `yaml:"schema"`
 }
 
 //
@@ -79,31 +89,61 @@ type MediaType struct {
 //
 
 type Components struct {
-	Schemas    MapSlice[SchemaOrRef]    `yaml:"schemas"`
+	Schemas    MapSlice[AnySchema]      `yaml:"schemas"`
 	Responses  MapSlice[ResponseOrRef]  `yaml:"responses"`
 	Parameters MapSlice[ParameterOrRef] `yaml:"parameters"`
 }
 
 type (
-	SchemaOrRef struct {
+	AnySchema struct {
 		Reference `yaml:",inline"` // Only used if .Reference.Ref is set
 		Schema    `yaml:",inline"`
+		AllOf     []*AnySchema `yaml:"allOf"`
 	}
 	Schema struct {
-		Type string `yaml:"type"` //todo enum
+		Type     string    `yaml:"type"` //todo enum
+		Required *Required `yaml:"required"`
+		Name     string    `yaml:"x-name"`
 
 		// Primitive only
-		Format string `yaml:"format"`
+		Format string   `yaml:"format"`
+		Enum   []string `yaml:"enum"`
 
 		// Objects
-		Properties           MapSlice[SchemaOrRef] `yaml:"properties"`
-		Required             []string              `yaml:"required"`
-		AdditionalProperties bool                  `yaml:"additionalProperties"`
+		Properties           MapSlice[AnySchema] `yaml:"properties"`
+		AdditionalProperties bool                `yaml:"additionalProperties"`
 
 		// Arrays
-		Items *SchemaOrRef `yaml:"items"`
+		Items *AnySchema `yaml:"items"`
 	}
 )
+
+type Required struct {
+	Single bool
+	Multi  []string
+}
+
+func (r *Required) IsOptional() bool {
+	return len(r.Multi) == 0 && !r.Single
+}
+
+func (r *Required) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind == yaml.ScalarNode {
+		var single bool
+		if err := node.Decode(&single); err != nil {
+			return err
+		}
+		r.Single = single
+		return nil
+	}
+
+	var multi []string
+	if err := node.Decode(&multi); err != nil {
+		return err
+	}
+	r.Multi = multi
+	return nil
+}
 
 //
 // Common

@@ -2,7 +2,7 @@ package gen
 
 type ModelTemplate struct {
 	Package string
-	Schemas []*SchemaTemplate
+	Schemas []*TypeInfo
 }
 
 type SchemaTemplate struct {
@@ -13,6 +13,17 @@ type SchemaTemplate struct {
 	Primitive *PrimitiveTemplate
 	Struct    *StructTemplate
 	Enum      *EnumTemplate
+}
+
+type TypeInfo struct {
+	Name   string
+	GoType string
+
+	// Only one of the entries should be present
+	Primitive *PrimitiveType
+	Struct    *StructType
+	Array     *ArrayType
+	Enum      *EnumType
 }
 
 type (
@@ -32,5 +43,28 @@ type (
 		Name   string
 		Type   string // string, int, etc
 		Values []string
+	}
+
+	// NEW BELOW
+
+	PrimitiveType struct {
+	}
+	StructType struct {
+		Fields []*FieldInfo
+	}
+	FieldInfo struct {
+		Name string
+		Type string
+	}
+	ArrayType struct {
+		ItemGoType string
+	}
+	EnumType struct {
+		GoType string
+		Values []*EnumCase
+	}
+	EnumCase struct {
+		Name    string
+		GoValue string
 	}
 )

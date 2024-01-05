@@ -10,8 +10,14 @@ import (
 )
 
 type {{ SnakeToPascal .Name }}Server interface {
-{{ range .Operations }}
-    {{ SnakeToPascal .Name }}(ctx context.Context, {{ range .PathParams }}{{ .Name }} string, {{ end }}{{ range .QueryParams }}{{ .Name }} string, {{ end }}{{ range .HeaderParams }}{{ DashToCamel .Name }} string, {{ end }}{{ with .Body }}req {{ .GoType }}{{ end }}) ({{ with .Response }}{{ range .Cases }}{{ .GoType }}, {{ end }}{{ end }}error){{ end }}
+{{- range .Operations }}
+    {{ SnakeToPascal .Name }}(ctx context.Context,
+    {{- range .PathParams }} {{ .Name }} string,{{ end -}}
+    {{- range .QueryParams }} {{ .Name }} {{ with .StructGoType }}{{ . }}{{ else }}string{{ end }},{{ end -}}
+    {{- range .HeaderParams }} {{ DashToCamel .Name }} string,{{ end -}}
+    {{- with .Body }} req {{ .GoType }}{{ end -}}
+    ) ({{ with .Response }}{{ range .Cases }}{{ .GoType }}, {{ end }}{{ end }}error)
+{{- end }}
 }
 
 {{ $WRAPPER_CLASS := print (SnakeToPascal .Name) "ServerWrapper" }}
@@ -22,8 +28,7 @@ type {{ $WRAPPER_CLASS }} struct {
 }
 
 type {{ $WRAPPER_CLASS }}Params struct {
-    {{ if .UseFx }}fx.In
-    {{ end }}
+    {{ if .UseFx }}fx.In{{ end }}
     Log     *zap.SugaredLogger
     Handler {{ SnakeToPascal .Name }}Server
 
@@ -42,66 +47,111 @@ func New{{ $WRAPPER_CLASS }}(p {{ $WRAPPER_CLASS }}Params) (*{{ $WRAPPER_CLASS }
 
 func (sw *{{ $WRAPPER_CLASS }}) Apply(r chi.Router) {
     r.Route("{{ .BasePath }}", func(r chi.Router) {
-        {{ range .Operations }}
-        r.{{ SnakeToPascal .Method }}("{{ .Path }}", sw.{{ SnakeToPascal .Name }}){{ end }}
+    {{- range .Operations }}
+        r.{{ SnakeToPascal .Method }}("{{ .Path }}", sw.{{ SnakeToPascal .Name }})
+    {{- end }}
     })
 }
 
 {{ range .Operations }}
 func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter, r *http.Request) {
-    // Validate Parameters
-    {{ range .QueryParams }}{{ if .Required }}if !r.URL.Query().Has("{{ .Name }}") {
-        oapi_rt.WriteMissingParamError(w, "{{ .Name }}")
-        return
-    }{{ end }}{{ end }}
-
     // Read Parameters
-    {{ range .PathParams }}{{ .Name }} := chi.URLParam(r, "{{ .Name }}")
-    {{ end }}
-    {{ range .QueryParams }}{{ .Name }} := r.URL.Query().Get("{{ .Name }}")
-    {{ end }}
-    {{ range .HeaderParams }}{{ DashToCamel .Name }} := r.Header.Get("{{ .Name }}")
-    {{ end }}
-    {{ with .Body }}// Read Body
-    var body {{ NoPtr .GoType }}
-    {{ if .IsRaw }}var err error
-    if body, err = io.ReadAll(r.Body); err != nil {{ else }}if err := json.NewDecoder(r.Body).Decode(&body); err != nil {{ end }}{
+    {{ range .QueryParams }}
+    {{ if .StructGoType }}
+    var {{ .Name }} {{ NoPtr .StructGoType }}
+    if err := oapi_rt.ReadExplodedQuery(r, &{{ .Name }}); err != nil {
         oapi_rt.WriteGenericError(w, err)
         return
-    }{{ end }}
+    }
+    {{ else }}
+    {{ .Name }} := r.URL.Query().Get("{{ .Name }}")
+    {{ end }}
+    {{ end }}
+    {{ range .HeaderParams }}
+    {{ DashToCamel .Name }} := r.Header.Get("{{ .Name }}")
+    {{ end }}
+    {{ with .PathParams }}
+    {{- range . }}
+    {{ .Name }} := chi.URLParam(r, "{{ .Name }}")
+    {{- end }}
+    {{ end }}
 
+    {{- with .Body }}
+    // Read Body
+    var body {{ NoPtr .GoType }}
+    var err error
+    {{ if .IsRaw }}
+    if body, err = io.ReadAll(r.Body); err != nil {
+    {{- else -}}
+    if err = json.NewDecoder(r.Body).Decode(&body); err != nil {
+    {{- end }}
+        oapi_rt.WriteGenericError(w, err)
+        return
+    }
+    {{ end }}
     var handler http.Handler
     handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        {{ with .Response }}{{ range .Cases }}{{ .Name }}, {{ end }}{{ end }}err := sw.handler.{{ SnakeToPascal .Name }}(r.Context(), {{ range .PathParams }}{{ .Name }}, {{ end }}{{ range .QueryParams }}{{ .Name }}, {{ end }}{{ range .HeaderParams }}{{ DashToCamel .Name }}, {{ end }}{{ with .Body }}{{ if not .IsRaw }}&{{ end }}body{{ end }})
+        ctx := oapi_rt.NewContext(r.Context(), r)
+
+        {{ with .Response }}
+        {{ range .Cases }}
+        {{- .Name }}, {{ end }}
+        {{- end -}}
+        err := sw.handler.{{ SnakeToPascal .Name }}(ctx,
+            {{- range .PathParams }} {{ .Name }},{{ end -}}
+            {{- range .QueryParams }} {{ if .StructGoType }}&{{ end }}{{ .Name }},{{ end -}}
+            {{- range .HeaderParams }} {{ DashToCamel .Name }},{{ end -}}
+            {{- with .Body }} {{ if not .IsRaw }}&{{ end }}body{{ end -}}
+        )
         if err != nil {
             oapi_rt.WriteGenericError(w, err)
             return
         }
 
         {{ with .Response }}
-        {{ range .Cases }}{{ $NAME := .Name }}
+        {{- range .Cases }}{{ $NAME := .Name -}}
         if {{ .Name }} != nil {
-            {{ if .Single }}w.Header().Set("content-type", "{{ .Single.ContentType }}")
+            {{ if .Single -}}
+            w.Header().Set("content-type", "{{ .Single.ContentType }}")
             w.WriteHeader({{ .Single.Code }})
-            {{ if eq .Single.Name "[]byte" }}_, _ = w.Write({{ .Name }}){{ else }}if err = json.NewEncoder(w).Encode({{ .Name }}); err != nil {
+            {{ if eq .Single.Name "[]byte" }}
+            _, _ = w.Write({{ .Name }})
+            {{ else }}
+            if err = json.NewEncoder(w).Encode({{ .Name }}); err != nil {
                 sw.log.Errorw("failed to encode response", "err", err)
                 w.WriteHeader(http.StatusInternalServerError)
-            }{{ end }}
-            return{{ else }}switch { {{ range .Multi }}case {{ $NAME }}.{{ FieldNameFromContentType .ContentType }} != nil:
+            }
+            {{- end }}
+            return
+            {{- else -}}
+            switch {
+            {{- range .Multi }}
+            case {{ $NAME }}.{{ FieldNameFromContentType .ContentType }} != nil:
                 w.Header().Set("content-type", "{{ .ContentType }}")
                 w.WriteHeader({{ .Code }})
-                {{ if eq .Name "[]byte" }}_, _ = w.Write({{ $NAME }}.{{ FieldNameFromContentType .ContentType }}){{ else }}if err = json.NewEncoder(w).Encode({{ $NAME }}.{{ FieldNameFromContentType .ContentType }}); err != nil {
-                sw.log.Errorw("failed to encode response", "err", err)
-                w.WriteHeader(http.StatusInternalServerError)
-                }{{ end }}
+                {{- if eq .Name "[]byte" }}
+                _, _ = w.Write({{ $NAME }}.{{ FieldNameFromContentType .ContentType }})
+                {{ else }}
+                if err = json.NewEncoder(w).Encode({{ $NAME }}.{{ FieldNameFromContentType .ContentType }}); err != nil {
+                    sw.log.Errorw("failed to encode response", "err", err)
+                    w.WriteHeader(http.StatusInternalServerError)
+                }
+                {{- end -}}
                 return
-            {{ end }}}{{ end }}
+            {{- end }}
+            }
+            {{- end }}
         }
-        {{ end }}
-        {{ if .EmptyCode }}w.WriteHeader({{ .EmptyCode }}){{ else }}// !! UNDEFINED EMPTY BEHAVIOR !!
+        {{- end }}
+        {{ if .EmptyCode }}
+        w.WriteHeader({{ .EmptyCode }})
+        {{- else }}
+        // !! UNDEFINED EMPTY BEHAVIOR !!
         // Set `x-type: empty` on a response to define this behavior.
         sw.log.Errorw("empty response")
-        w.WriteHeader(http.StatusInternalServerError){{ end }}{{ end }}
+        w.WriteHeader(http.StatusInternalServerError)
+        {{- end }}
+        {{- end }}
     })
     for _, middleware := range sw.middlewares {
         handler = middleware.Run(handler)

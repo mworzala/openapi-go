@@ -1,3 +1,6 @@
 .idea
 
 openapi-go
+
+example/api/mapsvc
+example/api/sessionsvc

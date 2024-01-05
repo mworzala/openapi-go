@@ -20,6 +20,22 @@ func (ms MapSlice[V]) Get(key string) (*V, bool) {
 	return nil, false
 }
 
+func (ms MapSlice[V]) With(key string, value *V) MapSlice[V] {
+	for i, entry := range ms {
+		if entry.Name == key {
+			ms[i].Value = value
+			return ms
+		}
+	}
+	return append(ms, struct {
+		Name  string
+		Value *V
+	}{
+		Name:  key,
+		Value: value,
+	})
+}
+
 func (ms *MapSlice[V]) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind != yaml.MappingNode {
 		return fmt.Errorf("expected a mapping node, got %v", node.Kind)
