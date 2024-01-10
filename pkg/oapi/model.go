@@ -45,7 +45,7 @@ func (p PathItem) IsEmpty() bool {
 type Operation struct {
 	OperationId string                  `yaml:"operationId"`
 	Parameters  []*ParameterOrRef       `yaml:"parameters"`
-	RequestBody *RequestBody            `yaml:"requestBody"`
+	RequestBody *RequestBodyOrRef       `yaml:"requestBody"`
 	Responses   MapSlice[ResponseOrRef] `yaml:"responses"`
 }
 
@@ -65,9 +65,15 @@ type (
 	}
 )
 
-type RequestBody struct {
-	Content MapSlice[MediaType] `yaml:"content"`
-}
+type (
+	RequestBodyOrRef struct {
+		Reference   `yaml:",inline"` // Only used if .Reference.Ref is set
+		RequestBody `yaml:",inline"`
+	}
+	RequestBody struct {
+		Content MapSlice[MediaType] `yaml:"content"`
+	}
+)
 
 type (
 	ResponseOrRef struct {
@@ -89,9 +95,10 @@ type MediaType struct {
 //
 
 type Components struct {
-	Schemas    MapSlice[AnySchema]      `yaml:"schemas"`
-	Responses  MapSlice[ResponseOrRef]  `yaml:"responses"`
-	Parameters MapSlice[ParameterOrRef] `yaml:"parameters"`
+	Schemas       MapSlice[AnySchema]        `yaml:"schemas"`
+	Parameters    MapSlice[ParameterOrRef]   `yaml:"parameters"`
+	RequestBodies MapSlice[RequestBodyOrRef] `yaml:"requestBodies"`
+	Responses     MapSlice[ResponseOrRef]    `yaml:"responses"`
 }
 
 type (

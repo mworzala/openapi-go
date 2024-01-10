@@ -126,27 +126,10 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 	}
 
 	if op.RequestBody != nil {
-		for _, content := range op.RequestBody.Content {
-			bodyStructName := fmt.Sprintf("%sRequest", util.SnakeToPascalCase(result.Name))
-			if content.Name == "application/json" {
-				s, err := g.resolveSchema(content.Value.Schema, bodyStructName, false)
-				if err != nil {
-					panic(err)
-				}
-				result.Body = &RequestBodyTemplate{}
-				result.Body.GoType = s.GoType
-			} else {
-				ty, err := g.resolveSchema(content.Value.Schema, bodyStructName, true)
-				if err != nil {
-					panic(err)
-				}
-				if ty.GoType != "[]byte" {
-					panic(fmt.Errorf("'%s'.%s: raw body must be []byte, got %s", path, method, ty.GoType))
-				}
-				result.Body = &RequestBodyTemplate{}
-				result.Body.GoType = ty.GoType
-				result.Body.IsRaw = true
-			}
+		var err error
+		result.Body, err = g.genSingleRequestBody(result.Name, op.RequestBody)
+		if err != nil {
+			return nil, fmt.Errorf("'%s'.%s: failed to generate request body: %w", path, method, err)
 		}
 	}
 
@@ -165,8 +148,8 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 		}
 	}
 
+	var res ResponseTemplate
 	if len(typedResponses) > 0 {
-		var res ResponseTemplate
 		for _, response := range typedResponses {
 			code, err := strconv.Atoi(response.Name)
 			if err != nil {
@@ -186,10 +169,48 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 
 			res.Cases = append(res.Cases, resCase)
 		}
-		result.Response = &res
 	}
+	result.Response = &res
 
 	return &result, nil
+}
+
+func (g *Generator) genSingleRequestBody(baseName string, model *oapi.RequestBodyOrRef) (*RequestBodyTemplate, error) {
+	if model.Ref != "" {
+		path := strings.Replace(model.Ref, "#/components/requestBodies/", "", 1)
+		ref, ok := g.spec.Components.RequestBodies.Get(path)
+		if !ok {
+			return nil, fmt.Errorf("failed to find request body ref: %s", model.Ref)
+		}
+
+		return g.genSingleRequestBody(path, ref)
+	}
+
+	for _, content := range model.Content {
+		bodyStructName := fmt.Sprintf("%sRequest", util.SnakeToPascalCase(baseName))
+		if content.Name == "application/json" {
+			s, err := g.resolveSchema(content.Value.Schema, bodyStructName, false)
+			if err != nil {
+				panic(err)
+			}
+			return &RequestBodyTemplate{
+				GoType: s.GoType,
+			}, nil
+		} else {
+			ty, err := g.resolveSchema(content.Value.Schema, bodyStructName, true)
+			if err != nil {
+				panic(err)
+			}
+			if ty.GoType != "[]byte" {
+				panic(fmt.Errorf("'%s'.%s: raw body must be []byte, got %s", "PATHTODO", "METHODTODO", ty.GoType))
+			}
+			return &RequestBodyTemplate{
+				GoType: ty.GoType,
+				IsRaw:  true,
+			}, nil
+		}
+	}
+	return nil, nil
 }
 
 // Handles generating a single response
