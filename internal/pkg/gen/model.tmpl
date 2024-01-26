@@ -8,7 +8,7 @@ import "github.com/mworzala/openapi-go/pkg/oapi-rt"
 {{ with .Struct -}}
 type {{ $name }} struct {
     {{- range .Fields }}
-    {{ if .Name }}{{ SnakeToPascal .Name }} {{ .Type }} `json:"{{ .Name }}"`{{ else }}{{ NoPtr .Type }}{{ end }}
+    {{ if .Name }}{{ CamelToPascal .Name }} {{ .Type }} `json:"{{ .Name }}"`{{ else }}{{ NoPtr .Type }}{{ end }}
     {{- end }}
 }
 {{- end -}}
@@ -20,8 +20,11 @@ type {{ $name }} {{ .GoType }}
 
 const (
     {{ range .Values -}}
-    {{ $name }}{{ SnakeToPascal .Name }} {{ $name }} = {{ .GoValue }}
+    {{ $name }}{{ CamelToPascal .Name }} {{ $name }} = {{ .GoValue }}
     {{ end }}
 )
+{{- end -}}
+{{- with .TypeAlias -}}
+type {{ $name }} {{ .AliasGoType }}
 {{- end -}}
 {{ end }}

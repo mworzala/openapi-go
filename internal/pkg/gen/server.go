@@ -47,8 +47,9 @@ type QueryParamTemplate struct {
 }
 
 type ParamTemplate struct {
-	Name     string
-	Required bool
+	Name       string
+	CustomName string
+	Required   bool
 }
 
 type ResponseTemplate struct {
@@ -105,7 +106,7 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 					return nil, fmt.Errorf("'%s'.%s: query param '%s' is an object, but explode is not set", path, method, param.Name)
 				}
 
-				typeName := fmt.Sprintf("%s%s", util.SnakeToPascalCase(result.Name), util.SnakeToPascalCase(param.Name))
+				typeName := fmt.Sprintf("%s%s", util.CamelToPascalCase(result.Name), util.CamelToPascalCase(param.Name))
 				typeInfo, err := g.resolveSchema(&oapi.AnySchema{Schema: *param.Schema}, typeName, false)
 				if err != nil {
 					return nil, fmt.Errorf("'%s'.%s: failed to resolve query param '%s': %w", path, method, param.Name, err)
@@ -116,9 +117,17 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 				panic("query params must be string or object")
 			}
 		case "header":
+			var paramName string
+			if param.CustomName != "" {
+				paramName = param.CustomName
+			} else {
+				paramName = param.Name
+			}
+
 			result.HeaderParams = append(result.HeaderParams, &ParamTemplate{
-				Name:     param.Name,
-				Required: param.Required,
+				Name:       param.Name,
+				CustomName: paramName,
+				Required:   param.Required,
 			})
 		default:
 			println("unsupported param type: " + param.In)
@@ -161,7 +170,7 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 				continue
 			}
 
-			baseName := fmt.Sprintf("%sResponse", util.SnakeToPascalCase(result.Name))
+			baseName := fmt.Sprintf("%sResponse", util.CamelToPascalCase(result.Name))
 			resCase, err := g.genSingleResponse(baseName, code, response.Value)
 			if err != nil {
 				return nil, fmt.Errorf("'%s'.%s: failed to generate response: %w", path, method, err)
@@ -187,15 +196,17 @@ func (g *Generator) genSingleRequestBody(baseName string, model *oapi.RequestBod
 	}
 
 	for _, content := range model.Content {
-		bodyStructName := fmt.Sprintf("%sRequest", util.SnakeToPascalCase(baseName))
+		bodyStructName := fmt.Sprintf("%sRequest", util.CamelToPascalCase(baseName))
 		if content.Name == "application/json" {
 			s, err := g.resolveSchema(content.Value.Schema, bodyStructName, false)
 			if err != nil {
 				panic(err)
 			}
-			return &RequestBodyTemplate{
-				GoType: s.GoType,
-			}, nil
+			template := &RequestBodyTemplate{GoType: s.GoType}
+			if s.GoType == "[]byte" {
+				template.IsRaw = true
+			}
+			return template, nil
 		} else {
 			ty, err := g.resolveSchema(content.Value.Schema, bodyStructName, true)
 			if err != nil {
@@ -284,8 +295,5 @@ func contentTypeToFieldName(contentType string) string {
 	contentType = sp[len(sp)-1]
 	sp = strings.Split(contentType, ".")
 	contentType = sp[len(sp)-1]
-	return strings.Replace(
-		util.SnakeToPascalCase(contentType),
-		"-", "", -1,
-	)
+	return util.SnakeToPascalCase(contentType)
 }

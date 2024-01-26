@@ -22,7 +22,7 @@ var (
 	//go:embed server.tmpl
 	serverTemplateRaw string
 	templateFuncs     = template.FuncMap{
-		"SnakeToPascal":            util.SnakeToPascalCase,
+		"CamelToPascal":            util.CamelToPascalCase,
 		"DashToCamel":              util.DashToCamelCase,
 		"FieldNameFromContentType": contentTypeToFieldName,
 		"NoPtr": func(t string) string {
@@ -147,18 +147,20 @@ func (g *Generator) GenSpecSingle(name string, spec *oapi.Spec) {
 
 	}
 
-	// Append any models which were not referenced from the spec
-	for _, schema := range g.spec.Components.Schemas {
-		fullName := fmt.Sprintf("#/components/schemas/%s", schema.Name)
-		if _, ok := g.schemas2.Get(fullName); ok {
-			continue // Already generated, skip
-		}
+	if g.spec.Components != nil {
+		// Append any models which were not referenced from the spec
+		for _, schema := range g.spec.Components.Schemas {
+			fullName := fmt.Sprintf("#/components/schemas/%s", schema.Name)
+			if _, ok := g.schemas2.Get(fullName); ok {
+				continue // Already generated, skip
+			}
 
-		ti, err := g.resolveSchema(schema.Value, schema.Name, false)
-		if err != nil {
-			panic(fmt.Errorf("failed to generate schema %s: %w", schema.Name, err))
+			ti, err := g.resolveSchema(schema.Value, schema.Name, false)
+			if err != nil {
+				panic(fmt.Errorf("failed to generate schema %s: %w", schema.Name, err))
+			}
+			g.schemas2 = g.schemas2.With(fullName, ti)
 		}
-		g.schemas2 = g.schemas2.With(fullName, ti)
 	}
 }
 

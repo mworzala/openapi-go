@@ -100,13 +100,13 @@ func (g *Generator) genSingleSchema(shortName string, schema *oapi.AnySchema) (*
 			Type: goType,
 		}
 	case "object":
-		// Special case: if object with no fields and additionalProperties=true, use a Go `any` type.
+		// Special case: if object with no fields and additionalProperties=true, use a `map[string]interface{}` type.
 		if len(schema.Properties) == 0 && schema.AdditionalProperties {
-			result.Name = "interface{}"
-			result.Primitive = &PrimitiveTemplate{
-				Name: "interface{}",
-				Type: "interface{}",
+			result.TypeAlias = &TypeAliasTemplate{
+				Name: shortName,
+				Type: "map[string]interface{}",
 			}
+			result.GoType = "*" + result.TypeAlias.Name
 			break
 		}
 
@@ -287,8 +287,14 @@ func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, nam
 	}
 
 	var result TypeInfo
-	result.Name = name
-	result.GoType = name
+	if schema.Name != "" {
+		result.Name = schema.Name
+		result.GoType = schema.Name
+	} else {
+		result.Name = name
+		result.GoType = name
+	}
+
 	result.Enum = &EnumType{}
 	result.Enum.GoType = parent.GoType
 	for i, value := range schema.Enum {
@@ -325,27 +331,36 @@ func (g *Generator) generateBooleanType(schema *oapi.Schema) (*TypeInfo, error) 
 }
 
 func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
-	var result TypeInfo
-	result.Name = "object"
-	result.GoType = "struct{}"
-	result.Struct = &StructType{}
-
 	var requiredOverride *oapi.Required
 	if schema.Required != nil && len(schema.Required.Multi) == 0 && !schema.Required.Single {
 		requiredOverride = &oapi.Required{Single: false}
 	}
 
+	var result TypeInfo
+	if schema.Name != "" {
+		result.Name = schema.Name
+		result.GoType = schema.Name
+	} else if nameOverride != "" {
+		result.Name = nameOverride
+		result.GoType = nameOverride
+	}
+
 	if len(schema.Properties) == 0 && schema.AdditionalProperties {
-		result.GoType = "any"
+		result.TypeAlias = &TypeAliasType{
+			AliasGoType: "map[string]interface{}",
+		}
 		return &result, nil
 	}
+
+	result.GoType = fmt.Sprintf("*%s", result.GoType)
+	result.Struct = &StructType{}
 
 	for _, field := range schema.Properties {
 		if requiredOverride != nil && field.Value.Required == nil {
 			field.Value.Required = requiredOverride
 		}
 
-		fieldType, err := g.resolveSchema(field.Value, util.SnakeToPascalCase(field.Name), true)
+		fieldType, err := g.resolveSchema(field.Value, util.CamelToPascalCase(field.Name), true)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve field type: %w", err)
 		}
@@ -361,14 +376,6 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 		})
 	}
 
-	if schema.Name != "" {
-		result.Name = schema.Name
-		result.GoType = fmt.Sprintf("*%s", schema.Name)
-	} else if nameOverride != "" {
-		result.Name = nameOverride
-		result.GoType = fmt.Sprintf("*%s", nameOverride)
-	}
-
 	return &result, nil
 }
 
@@ -382,7 +389,12 @@ func (g *Generator) generateArrayType(schema *oapi.Schema, name string) (*TypeIn
 		return nil, fmt.Errorf("failed to resolve array type: %w", err)
 	}
 	result.Array.ItemGoType = itemType.GoType
-	result.GoType = fmt.Sprintf("[]%s", itemType.GoType) //todo this isnt necessarily correct
+
+	if schema.Name != "" {
+		result.GoType = schema.Name
+	} else {
+		result.GoType = fmt.Sprintf("[]%s", itemType.GoType)
+	}
 
 	//if itemType.Primitive != nil {
 	//	result.Name = name

@@ -55,10 +55,11 @@ type (
 		Parameter `yaml:",inline"`
 	}
 	Parameter struct {
-		Name     string  `yaml:"name"` // Required
-		In       string  `yaml:"in"`   // Required, todo enum of "query", "header", "path" or "cookie"
-		Required bool    `yaml:"required"`
-		Schema   *Schema `yaml:"schema"`
+		Name       string  `yaml:"name"` // Required
+		CustomName string  `yaml:"x-name"`
+		In         string  `yaml:"in"` // Required, todo enum of "query", "header", "path" or "cookie"
+		Required   bool    `yaml:"required"`
+		Schema     *Schema `yaml:"schema"`
 
 		// Query only
 		Explode bool `yaml:"explode"`

@@ -1,25 +1,28 @@
 package util
 
 import (
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 	"strings"
-	"unicode"
 )
 
-func SnakeToPascalCase(str string) string {
-	titleStr := strings.Title(str)
-	pascalStr := strings.Replace(titleStr, "_", "", -1)
-	// handle an edge case when there is a '_' at the start
-	if strings.HasPrefix(str, "_") {
-		pascalStr = "_" + strings.TrimLeft(pascalStr, "_")
-	}
+func CamelToPascalCase(str string) string {
+	// Uppercase first character, leave the rest untouched
+	return cases.Title(language.English, cases.NoLower).String(str)
+}
 
-	res := []rune(pascalStr)
-	for i, char := range res {
-		if char == '_' {
-			res[i+1] = unicode.ToUpper(res[i+1])
-		}
+func SnakeToPascalCase(str string) string {
+	titleStr := titleSnakeCase(str)
+	pascalStr := strings.Replace(titleStr, "_", "", -1)
+	return pascalStr
+}
+
+func titleSnakeCase(str string) string {
+	components := strings.Split(str, "_")
+	for i, component := range components {
+		components[i] = cases.Title(language.English, cases.NoLower).String(component)
 	}
-	return string(res)
+	return strings.Join(components, "_")
 }
 
 func DashToCamelCase(s string) string {

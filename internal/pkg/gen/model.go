@@ -13,6 +13,7 @@ type SchemaTemplate struct {
 	Primitive *PrimitiveTemplate
 	Struct    *StructTemplate
 	Enum      *EnumTemplate
+	TypeAlias *TypeAliasTemplate
 }
 
 type TypeInfo struct {
@@ -24,6 +25,7 @@ type TypeInfo struct {
 	Struct    *StructType
 	Array     *ArrayType
 	Enum      *EnumType
+	TypeAlias *TypeAliasType
 }
 
 type (
@@ -43,6 +45,10 @@ type (
 		Name   string
 		Type   string // string, int, etc
 		Values []string
+	}
+	TypeAliasTemplate struct {
+		Name string
+		Type string
 	}
 
 	// NEW BELOW
@@ -66,5 +72,8 @@ type (
 	EnumCase struct {
 		Name    string
 		GoValue string
+	}
+	TypeAliasType struct {
+		AliasGoType string
 	}
 )

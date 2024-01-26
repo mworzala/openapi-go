@@ -9,28 +9,28 @@ import (
     {{ if .UseFx }}"go.uber.org/fx"{{ end }}
 )
 
-type {{ SnakeToPascal .Name }}Server interface {
+type {{ CamelToPascal .Name }}Server interface {
 {{- range .Operations }}
-    {{ SnakeToPascal .Name }}(ctx context.Context,
+    {{ CamelToPascal .Name }}(ctx context.Context,
     {{- range .PathParams }} {{ .Name }} string,{{ end -}}
     {{- range .QueryParams }} {{ .Name }} {{ with .StructGoType }}{{ . }}{{ else }}string{{ end }},{{ end -}}
-    {{- range .HeaderParams }} {{ DashToCamel .Name }} string,{{ end -}}
+    {{- range .HeaderParams }} {{ DashToCamel .CustomName }} string,{{ end -}}
     {{- with .Body }} req {{ .GoType }}{{ end -}}
     ) ({{ with .Response }}{{ range .Cases }}{{ .GoType }}, {{ end }}{{ end }}error)
 {{- end }}
 }
 
-{{ $WRAPPER_CLASS := print (SnakeToPascal .Name) "ServerWrapper" }}
+{{ $WRAPPER_CLASS := print (CamelToPascal .Name) "ServerWrapper" }}
 type {{ $WRAPPER_CLASS }} struct {
     log         *zap.SugaredLogger
     middlewares []oapi_rt.Middleware
-    handler     {{ SnakeToPascal .Name }}Server
+    handler     {{ CamelToPascal .Name }}Server
 }
 
 type {{ $WRAPPER_CLASS }}Params struct {
     {{ if .UseFx }}fx.In{{ end }}
     Log     *zap.SugaredLogger
-    Handler {{ SnakeToPascal .Name }}Server
+    Handler {{ CamelToPascal .Name }}Server
 
     Middleware []oapi_rt.Middleware{{if .UseFx }} `group:"{{ .Name }}_middleware"`{{ end }}
 }
@@ -48,13 +48,13 @@ func New{{ $WRAPPER_CLASS }}(p {{ $WRAPPER_CLASS }}Params) (*{{ $WRAPPER_CLASS }
 func (sw *{{ $WRAPPER_CLASS }}) Apply(r chi.Router) {
     r.Route("{{ .BasePath }}", func(r chi.Router) {
     {{- range .Operations }}
-        r.{{ SnakeToPascal .Method }}("{{ .Path }}", sw.{{ SnakeToPascal .Name }})
+        r.{{ CamelToPascal .Method }}("{{ .Path }}", sw.{{ CamelToPascal .Name }})
     {{- end }}
     })
 }
 
 {{ range .Operations }}
-func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter, r *http.Request) {
+func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter, r *http.Request) {
     // Read Parameters
     {{ range .QueryParams }}
     {{ if .StructGoType }}
@@ -68,7 +68,7 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter,
     {{ end }}
     {{ end }}
     {{ range .HeaderParams }}
-    {{ DashToCamel .Name }} := r.Header.Get("{{ .Name }}")
+    {{ DashToCamel .CustomName }} := r.Header.Get("{{ .Name }}")
     {{ end }}
     {{ with .PathParams }}
     {{- range . }}
@@ -97,10 +97,10 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter,
         {{ range .Cases }}
         {{- .Name }}, {{ end }}
         {{- end -}}
-        err := sw.handler.{{ SnakeToPascal .Name }}(ctx,
+        err := sw.handler.{{ CamelToPascal .Name }}(ctx,
             {{- range .PathParams }} {{ .Name }},{{ end -}}
             {{- range .QueryParams }} {{ if .StructGoType }}&{{ end }}{{ .Name }},{{ end -}}
-            {{- range .HeaderParams }} {{ DashToCamel .Name }},{{ end -}}
+            {{- range .HeaderParams }} {{ DashToCamel .CustomName }},{{ end -}}
             {{- with .Body }} {{ if not .IsRaw }}&{{ end }}body{{ end -}}
         )
         if err != nil {
@@ -109,7 +109,7 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ SnakeToPascal .Name }}(w http.ResponseWriter,
         }
 
         {{ with .Response }}
-        {{- range .Cases }}{{ $NAME := .Name -}}
+        {{- range .Cases }}{{ $NAME := .Name }}
         if {{ .Name }} != nil {
             {{ if .Single -}}
             w.Header().Set("content-type", "{{ .Single.ContentType }}")
