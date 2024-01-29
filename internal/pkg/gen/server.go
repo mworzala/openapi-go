@@ -295,5 +295,7 @@ func contentTypeToFieldName(contentType string) string {
 	contentType = sp[len(sp)-1]
 	sp = strings.Split(contentType, ".")
 	contentType = sp[len(sp)-1]
-	return util.SnakeToPascalCase(contentType)
+	contentType = strings.ReplaceAll(contentType, "_", "")
+	contentType = strings.ReplaceAll(contentType, "-", "_")
+	return util.CamelToPascalCase(contentType)
 }
