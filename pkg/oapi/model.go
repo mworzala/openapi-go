@@ -120,8 +120,6 @@ type (
 		// Objects
 		Properties           MapSlice[AnySchema] `yaml:"properties"`
 		AdditionalProperties bool                `yaml:"additionalProperties"`
-		GenerateTypeAlias    bool                `yaml:"x-type-alias"`
-		GenerateMapObject    bool                `yaml:"x-map-object"`
 
 		// Arrays
 		Items *AnySchema `yaml:"items"`
