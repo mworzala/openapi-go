@@ -296,6 +296,6 @@ func contentTypeToFieldName(contentType string) string {
 	sp = strings.Split(contentType, ".")
 	contentType = sp[len(sp)-1]
 	contentType = strings.ReplaceAll(contentType, "_", "")
-	contentType = strings.ReplaceAll(contentType, "-", "_")
+	contentType = strings.ReplaceAll(contentType, "-", "")
 	return util.CamelToPascalCase(contentType)
 }

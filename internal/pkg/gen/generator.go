@@ -23,6 +23,7 @@ var (
 	serverTemplateRaw string
 	templateFuncs     = template.FuncMap{
 		"CamelToPascal":            util.CamelToPascalCase,
+		"SnakeToPascal":            util.SnakeToPascalCase,
 		"DashToCamel":              util.DashToCamelCase,
 		"FieldNameFromContentType": contentTypeToFieldName,
 		"NoPtr": func(t string) string {
