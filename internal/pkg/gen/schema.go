@@ -102,16 +102,26 @@ func (g *Generator) genSingleSchema(shortName string, schema *oapi.AnySchema) (*
 	case "object":
 		// Special case: if object with no fields and additionalProperties=true, use a `map[string]interface{}` type.
 		if len(schema.Properties) == 0 && schema.AdditionalProperties {
-			result.Name = "map[string]interface{}"
-			result.Primitive = &PrimitiveTemplate{
-				Name: "map[string]interface{}",
-				Type: "map[string]interface{}",
+			var generatedType string
+			if schema.GenerateMapObject {
+				generatedType = "map[string]interface{}"
+			} else {
+				generatedType = "interface{}"
 			}
-			//result.TypeAlias = &TypeAliasTemplate{
-			//	Name: shortName,
-			//	Type: "map[string]interface{}",
-			//}
-			//result.GoType = "*" + result.TypeAlias.Name
+
+			if schema.GenerateTypeAlias {
+				result.TypeAlias = &TypeAliasTemplate{
+					Name: shortName,
+					Type: generatedType,
+				}
+				result.GoType = "*" + result.TypeAlias.Name
+			} else {
+				result.Name = generatedType
+				result.Primitive = &PrimitiveTemplate{
+					Name: generatedType,
+					Type: generatedType,
+				}
+			}
 			break
 		}
 
@@ -351,8 +361,20 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 	}
 
 	if len(schema.Properties) == 0 && schema.AdditionalProperties {
-		result.Name = "map[string]interface{}"
-		result.GoType = "map[string]interface{}"
+		var generatedType string
+		if schema.GenerateMapObject {
+			generatedType = "map[string]interface{}"
+		} else {
+			generatedType = "any"
+		}
+
+		if schema.GenerateTypeAlias {
+			result.TypeAlias = &TypeAliasType{
+				AliasGoType: generatedType,
+			}
+		} else {
+			result.GoType = generatedType
+		}
 		return &result, nil
 	}
 
