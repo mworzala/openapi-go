@@ -102,11 +102,16 @@ func (g *Generator) genSingleSchema(shortName string, schema *oapi.AnySchema) (*
 	case "object":
 		// Special case: if object with no fields and additionalProperties=true, use a `map[string]interface{}` type.
 		if len(schema.Properties) == 0 && schema.AdditionalProperties {
-			result.TypeAlias = &TypeAliasTemplate{
-				Name: shortName,
+			result.Name = "map[string]interface{}"
+			result.Primitive = &PrimitiveTemplate{
+				Name: "map[string]interface{}",
 				Type: "map[string]interface{}",
 			}
-			result.GoType = "*" + result.TypeAlias.Name
+			//result.TypeAlias = &TypeAliasTemplate{
+			//	Name: shortName,
+			//	Type: "map[string]interface{}",
+			//}
+			//result.GoType = "*" + result.TypeAlias.Name
 			break
 		}
 
@@ -346,9 +351,8 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 	}
 
 	if len(schema.Properties) == 0 && schema.AdditionalProperties {
-		result.TypeAlias = &TypeAliasType{
-			AliasGoType: "map[string]interface{}",
-		}
+		result.Name = "map[string]interface{}"
+		result.GoType = "map[string]interface{}"
 		return &result, nil
 	}
 
