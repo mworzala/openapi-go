@@ -167,7 +167,11 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 
 			if response.Value.Ref == "" && response.Value.Type == "empty" {
 				res.EmptyCode = &code
-				// Keep going because the empty response might also be a real case
+
+				// If there is no response body, don't generate anything and keep going.
+				if len(response.Value.Content) == 0 {
+					continue
+				}
 			}
 
 			baseName := fmt.Sprintf("%sResponse", util.CamelToPascalCase(result.Name))
