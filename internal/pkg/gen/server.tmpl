@@ -13,7 +13,7 @@ type {{ CamelToPascal .Name }}Server interface {
 {{- range .Operations }}
     {{ CamelToPascal .Name }}(ctx context.Context,
     {{- range .PathParams }} {{ .Name }} string,{{ end -}}
-    {{- range .QueryParams }} {{ .Name }} {{ with .StructGoType }}{{ . }}{{ else }}string{{ end }},{{ end -}}
+    {{- range .QueryParams }} {{ .Name }} {{ with .StructGoType }}{{ . }}{{ else }}{{ with .NumberGoType }}{{ . }}{{ else }}string{{ end }}{{ end }},{{ end -}}
     {{- range .HeaderParams }} {{ DashToCamel .CustomName }} string,{{ end -}}
     {{- with .Body }} req {{ .GoType }}{{ end -}}
     ) ({{ with .Response }}{{ range .Cases }}{{ .GoType }}, {{ end }}{{ end }}error)
@@ -60,6 +60,17 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
     {{ if .StructGoType }}
     var {{ .Name }} {{ NoPtr .StructGoType }}
     if err := oapi_rt.ReadExplodedQuery(r, &{{ .Name }}); err != nil {
+        oapi_rt.WriteGenericError(w, err)
+        return
+    }
+    {{ else if .NumberGoType }}
+    {{ .Name }}Str := r.URL.Query().Get("{{ .Name }}")
+    {{- if eq .NumberGoType "int" }}
+    {{ .Name }}, err := strconv.Atoi({{ .Name }}Str)
+    {{ else }}
+    {{ .Name }}, err := strconv.ParseFloat({{ .Name }}Str, 64)
+    {{ end -}}
+    if err != nil {
         oapi_rt.WriteGenericError(w, err)
         return
     }

@@ -43,6 +43,7 @@ type QueryParamTemplate struct {
 	Name     string
 	Required bool
 
+	NumberGoType string
 	StructGoType string
 }
 
@@ -99,9 +100,14 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 			}
 			result.QueryParams = append(result.QueryParams, tmpl)
 
-			if param.Schema.Type == "string" {
+			switch param.Schema.Type {
+			case "string":
 				// Already handled by above
-			} else if param.Schema.Type == "object" {
+			case "integer":
+				tmpl.NumberGoType = "int"
+			case "number":
+				tmpl.NumberGoType = "float64"
+			case "object":
 				if !param.Explode {
 					return nil, fmt.Errorf("'%s'.%s: query param '%s' is an object, but explode is not set", path, method, param.Name)
 				}
@@ -113,8 +119,8 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 				}
 
 				tmpl.StructGoType = typeInfo.GoType
-			} else {
-				panic("query params must be string or object")
+			default:
+				panic(fmt.Sprintf("unsupported query param type: %s", param.Schema.Type))
 			}
 		case "header":
 			var paramName string
