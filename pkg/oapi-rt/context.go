@@ -11,9 +11,19 @@ import (
 type contextKey string
 
 const (
-	acceptKey contextKey = "accept"
+	requestKey contextKey = "request"
+	acceptKey  contextKey = "accept"
 )
 
 func NewContext(ctx context.Context, r *http.Request) context.Context {
-	return context.WithValue(ctx, acceptKey, r.Header.Get("Accept"))
+	return context.WithValue(
+		context.WithValue(ctx, acceptKey, r.Header.Get("Accept")),
+		requestKey, r,
+	)
+}
+
+// RequestFromContext returns the request from the context.
+// Bad bad very bad do not use unless necessary
+func RequestFromContext(ctx context.Context) *http.Request {
+	return ctx.Value(requestKey).(*http.Request)
 }
