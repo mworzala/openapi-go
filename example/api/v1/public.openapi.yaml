@@ -3,6 +3,16 @@ info:
   title: Map Service Public API
   version: "1"
 paths:
+  /test/plain_resp:
+    get:
+      operationId: getTestPlainResp
+      responses:
+        '200':
+          description: abc
+          content:
+            text/plain:
+              schema:
+                type: string
   /maps/{id}/world:
     get:
       operationId: getMapWorld

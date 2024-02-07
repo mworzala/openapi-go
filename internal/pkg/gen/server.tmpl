@@ -121,12 +121,14 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
 
         {{ with .Response }}
         {{- range .Cases }}{{ $NAME := .Name }}
-        if {{ .Name }} != nil {
+        if {{ .Name }} != {{ .ZeroValue }} {
             {{ if .Single -}}
             w.Header().Set("content-type", "{{ .Single.ContentType }}")
             w.WriteHeader({{ .Single.Code }})
-            {{ if eq .Single.Name "[]byte" }}
+            {{- if eq .Single.Name "[]byte" }}
             _, _ = w.Write({{ .Name }})
+            {{ else if eq .Single.Name "string" }}
+            _, _ = w.Write([]byte({{ .Name }}))
             {{ else }}
             if err = json.NewEncoder(w).Encode({{ .Name }}); err != nil {
                 sw.log.Errorw("failed to encode response", "err", err)

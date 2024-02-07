@@ -223,6 +223,7 @@ func (g *Generator) generateTypeFromSchemaNoRef(schema *oapi.AnySchema, nameOver
 func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = "string"
+	result.ZeroValue = "\"\""
 	result.Primitive = &PrimitiveType{}
 
 	switch schema.Format {
@@ -232,13 +233,15 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string)
 		panic("todo should be base64 encoded")
 	case "binary":
 		result.GoType = "[]byte"
+		result.ZeroValue = "nil"
 	case "uuid":
-		panic("todo shoul be uuid")
+		panic("todo should be uuid")
 	default:
 		if schema.Format != "" {
 			println(fmt.Sprintf("unsupported string format: %s", schema.Format))
 		}
 		result.GoType = "string"
+		result.ZeroValue = "\"\""
 	}
 
 	r, err := g.maybeGenerateEnum(schema, &result, nameOverride)
@@ -247,6 +250,7 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string)
 	}
 	if schema.Required != nil && schema.Required.IsOptional() {
 		r.GoType = "*" + r.GoType
+		r.ZeroValue = "nil"
 	}
 	return r, nil
 }
@@ -254,6 +258,7 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string)
 func (g *Generator) generateNumericType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Primitive = &PrimitiveType{}
+	result.ZeroValue = "0"
 
 	// Right now this is a bit too expressive. `integer` and `number` are treated (almost) identically so you
 	// can have an integer with a float format. This should be fixed later.
@@ -302,6 +307,7 @@ func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, nam
 		result.Name = name
 		result.GoType = name
 	}
+	result.ZeroValue = fmt.Sprintf("%s(%s)", result.GoType, parent.ZeroValue)
 
 	result.Enum = &EnumType{}
 	result.Enum.GoType = parent.GoType
@@ -319,6 +325,7 @@ func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, nam
 
 	if schema.Required != nil && schema.Required.IsOptional() {
 		result.GoType = "*" + result.GoType
+		result.ZeroValue = "nil"
 	}
 
 	return &result, nil
@@ -328,11 +335,13 @@ func (g *Generator) generateBooleanType(schema *oapi.Schema) (*TypeInfo, error) 
 	result := &TypeInfo{
 		Name:      "boolean",
 		GoType:    "bool",
+		ZeroValue: "false",
 		Primitive: &PrimitiveType{},
 	}
 
 	if schema.Required != nil && schema.Required.IsOptional() {
 		result.GoType = "*bool"
+		result.ZeroValue = "nil"
 	}
 
 	return result, nil
@@ -352,6 +361,7 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 		result.Name = nameOverride
 		result.GoType = nameOverride
 	}
+	result.ZeroValue = "nil"
 
 	if len(schema.Properties) == 0 && schema.AdditionalProperties {
 		if schema.Name != "" {
@@ -394,6 +404,7 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 func (g *Generator) generateArrayType(schema *oapi.Schema, name string) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = name
+	result.ZeroValue = "nil"
 	result.Array = &ArrayType{}
 
 	itemType, err := g.resolveSchema(schema.Items, name+"Item", false)
@@ -419,6 +430,7 @@ func (g *Generator) generateArrayType(schema *oapi.Schema, name string) (*TypeIn
 func (g *Generator) generateAllOfType(schema []*oapi.AnySchema, name string) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = "allOf"
+	result.ZeroValue = "nil"
 	result.Struct = &StructType{}
 
 	for _, subSchema := range schema {

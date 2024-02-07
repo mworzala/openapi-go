@@ -68,8 +68,9 @@ type ResponseTemplate struct {
 }
 
 type ResponseCaseTemplate struct {
-	Name   string
-	GoType string
+	Name      string
+	GoType    string
+	ZeroValue string
 
 	Single *SingleResponseTemplate
 	Multi  *[]*SingleResponseTemplate
@@ -255,8 +256,12 @@ func (g *Generator) genSingleResponse(baseName string, code int, response *oapi.
 		if err != nil {
 			panic(err)
 		}
+		if schema.ZeroValue == "" {
+			return nil, fmt.Errorf("'%s'.%d: zero value for type '%s' is not defined", baseName, code, schema.GoType)
+		}
 
 		resCase.GoType = schema.GoType
+		resCase.ZeroValue = schema.ZeroValue
 		resCase.Single = &SingleResponseTemplate{
 			Code:        code,
 			ContentType: single.Name,
@@ -274,6 +279,9 @@ func (g *Generator) genSingleResponse(baseName string, code int, response *oapi.
 			if err != nil {
 				panic(err)
 			}
+			if schema.ZeroValue == "" {
+				return nil, fmt.Errorf("'%s'.%d: zero value for type '%s' is not defined", baseName, code, schema.GoType)
+			}
 
 			singles[i] = &SingleResponseTemplate{
 				Code:        code,
@@ -287,6 +295,7 @@ func (g *Generator) genSingleResponse(baseName string, code int, response *oapi.
 		}
 
 		resCase.GoType = "*" + multiModelName
+		resCase.ZeroValue = "nil"
 		resCase.Multi = &singles
 		g.schemas2 = g.schemas2.With(fmt.Sprintf("#/components/schemas/%s", multiModelName), &TypeInfo{
 			Name:   multiModelName,

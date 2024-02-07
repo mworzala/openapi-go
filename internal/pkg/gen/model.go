@@ -17,8 +17,9 @@ type SchemaTemplate struct {
 }
 
 type TypeInfo struct {
-	Name   string
-	GoType string
+	Name      string
+	GoType    string
+	ZeroValue string
 
 	// Only one of the entries should be present
 	Primitive *PrimitiveType
