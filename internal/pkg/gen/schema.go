@@ -155,9 +155,9 @@ func (g *Generator) oapiTypeToGoType(oapiType string) string {
 
 func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous, required bool) (*TypeInfo, error) {
 	if schema.Ref != "" {
-		if existing, ok := g.schemas2.Get(schema.Ref); ok {
-			return existing, nil
-		}
+		//if existing, ok := g.schemas2.Get(schema.Ref); ok {
+		//	return existing, nil
+		//}
 
 		// Generate the model
 		schemaName := strings.TrimPrefix(schema.Ref, "#/components/schemas/")
