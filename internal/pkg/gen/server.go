@@ -114,7 +114,7 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 				}
 
 				typeName := fmt.Sprintf("%s%s", util.CamelToPascalCase(result.Name), util.CamelToPascalCase(param.Name))
-				typeInfo, err := g.resolveSchema(&oapi.AnySchema{Schema: *param.Schema}, typeName, false)
+				typeInfo, err := g.resolveSchema(&oapi.AnySchema{Schema: *param.Schema}, typeName, false, true)
 				if err != nil {
 					return nil, fmt.Errorf("'%s'.%s: failed to resolve query param '%s': %w", path, method, param.Name, err)
 				}
@@ -209,7 +209,7 @@ func (g *Generator) genSingleRequestBody(baseName string, model *oapi.RequestBod
 	for _, content := range model.Content {
 		bodyStructName := fmt.Sprintf("%sRequest", util.CamelToPascalCase(baseName))
 		if content.Name == "application/json" {
-			s, err := g.resolveSchema(content.Value.Schema, bodyStructName, false)
+			s, err := g.resolveSchema(content.Value.Schema, bodyStructName, false, true)
 			if err != nil {
 				panic(err)
 			}
@@ -219,7 +219,7 @@ func (g *Generator) genSingleRequestBody(baseName string, model *oapi.RequestBod
 			}
 			return template, nil
 		} else {
-			ty, err := g.resolveSchema(content.Value.Schema, bodyStructName, true)
+			ty, err := g.resolveSchema(content.Value.Schema, bodyStructName, true, true)
 			if err != nil {
 				panic(err)
 			}
@@ -252,7 +252,7 @@ func (g *Generator) genSingleResponse(baseName string, code int, response *oapi.
 	resCase.Name = fmt.Sprintf("code%d", code)
 	if len(response.Content) == 1 {
 		single := response.Content[0]
-		schema, err := g.resolveSchema(single.Value.Schema, baseName, false)
+		schema, err := g.resolveSchema(single.Value.Schema, baseName, false, true)
 		if err != nil {
 			panic(err)
 		}
@@ -275,7 +275,7 @@ func (g *Generator) genSingleResponse(baseName string, code int, response *oapi.
 
 		for i, content := range response.Content {
 			fieldName := contentTypeToFieldName(content.Name)
-			schema, err := g.resolveSchema(content.Value.Schema, fieldName, false)
+			schema, err := g.resolveSchema(content.Value.Schema, fieldName, false, true)
 			if err != nil {
 				panic(err)
 			}

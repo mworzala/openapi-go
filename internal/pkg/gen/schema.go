@@ -2,6 +2,7 @@ package gen
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/mworzala/openapi-go/internal/pkg/util"
@@ -152,7 +153,7 @@ func (g *Generator) oapiTypeToGoType(oapiType string) string {
 
 // Newer stuff
 
-func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous bool) (*TypeInfo, error) {
+func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous, required bool) (*TypeInfo, error) {
 	if schema.Ref != "" {
 		if existing, ok := g.schemas2.Get(schema.Ref); ok {
 			return existing, nil
@@ -170,7 +171,7 @@ func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous
 			return nil, fmt.Errorf("double reference: %s -> %s", schema.Ref, s.Ref)
 		}
 
-		generated, err := g.generateTypeFromSchemaNoRef(s, schemaName)
+		generated, err := g.generateTypeFromSchemaNoRef(s, schemaName, required)
 		if err != nil {
 			return nil, fmt.Errorf("gen fail for %s: %w", schema.Ref, err)
 		}
@@ -183,7 +184,7 @@ func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous
 		return generated, nil
 	}
 
-	ti, err := g.generateTypeFromSchemaNoRef(schema, name)
+	ti, err := g.generateTypeFromSchemaNoRef(schema, name, required)
 	if err != nil {
 		return nil, fmt.Errorf("gen fail for %s: %w", schema.Ref, err)
 	}
@@ -194,10 +195,10 @@ func (g *Generator) resolveSchema(schema *oapi.AnySchema, name string, anonymous
 	return ti, nil
 }
 
-func (g *Generator) generateTypeFromSchemaNoRef(schema *oapi.AnySchema, nameOverride string) (*TypeInfo, error) {
+func (g *Generator) generateTypeFromSchemaNoRef(schema *oapi.AnySchema, nameOverride string, required bool) (*TypeInfo, error) {
 
 	if len(schema.AllOf) > 0 {
-		return g.generateAllOfType(schema.AllOf, nameOverride)
+		return g.generateAllOfType(schema.AllOf, nameOverride, required)
 	}
 
 	// Assume it is a normal type
@@ -206,21 +207,21 @@ func (g *Generator) generateTypeFromSchemaNoRef(schema *oapi.AnySchema, nameOver
 	}
 	switch schema.Type {
 	case "string":
-		return g.generateStringType(&schema.Schema, nameOverride)
+		return g.generateStringType(&schema.Schema, nameOverride, required)
 	case "number", "integer":
-		return g.generateNumericType(&schema.Schema, nameOverride)
+		return g.generateNumericType(&schema.Schema, nameOverride, required)
 	case "boolean":
-		return g.generateBooleanType(&schema.Schema)
+		return g.generateBooleanType(&schema.Schema, required)
 	case "object":
-		return g.generateObjectType(&schema.Schema, nameOverride)
+		return g.generateObjectType(&schema.Schema, nameOverride, required)
 	case "array":
-		return g.generateArrayType(&schema.Schema, nameOverride)
+		return g.generateArrayType(&schema.Schema, nameOverride, required)
 	default:
 		return nil, fmt.Errorf("unsupported schema type: %s", schema.Type)
 	}
 }
 
-func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
+func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string, required bool) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = "string"
 	result.ZeroValue = "\"\""
@@ -244,18 +245,18 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string)
 		result.ZeroValue = "\"\""
 	}
 
-	r, err := g.maybeGenerateEnum(schema, &result, nameOverride)
+	r, err := g.maybeGenerateEnum(schema, &result, nameOverride, required)
 	if err != nil {
 		return nil, err
 	}
-	if schema.Required != nil && schema.Required.IsOptional() {
+	if !required {
 		r.GoType = "*" + r.GoType
 		r.ZeroValue = "nil"
 	}
 	return r, nil
 }
 
-func (g *Generator) generateNumericType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
+func (g *Generator) generateNumericType(schema *oapi.Schema, nameOverride string, required bool) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Primitive = &PrimitiveType{}
 	result.ZeroValue = "0"
@@ -284,17 +285,17 @@ func (g *Generator) generateNumericType(schema *oapi.Schema, nameOverride string
 
 	result.Name = result.GoType
 
-	r, err := g.maybeGenerateEnum(schema, &result, nameOverride)
+	r, err := g.maybeGenerateEnum(schema, &result, nameOverride, required)
 	if err != nil {
 		return nil, err
 	}
-	if schema.Required != nil && schema.Required.IsOptional() {
+	if !required {
 		r.GoType = "*" + r.GoType
 	}
 	return r, nil
 }
 
-func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, name string) (*TypeInfo, error) {
+func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, name string, required bool) (*TypeInfo, error) {
 	if len(schema.Enum) == 0 {
 		return parent, nil
 	}
@@ -323,7 +324,7 @@ func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, nam
 		result.Enum.Values = append(result.Enum.Values, entry)
 	}
 
-	if schema.Required != nil && schema.Required.IsOptional() {
+	if !required {
 		result.GoType = "*" + result.GoType
 		result.ZeroValue = "nil"
 	}
@@ -331,7 +332,7 @@ func (g *Generator) maybeGenerateEnum(schema *oapi.Schema, parent *TypeInfo, nam
 	return &result, nil
 }
 
-func (g *Generator) generateBooleanType(schema *oapi.Schema) (*TypeInfo, error) {
+func (g *Generator) generateBooleanType(schema *oapi.Schema, required bool) (*TypeInfo, error) {
 	result := &TypeInfo{
 		Name:      "boolean",
 		GoType:    "bool",
@@ -339,7 +340,7 @@ func (g *Generator) generateBooleanType(schema *oapi.Schema) (*TypeInfo, error) 
 		Primitive: &PrimitiveType{},
 	}
 
-	if schema.Required != nil && schema.Required.IsOptional() {
+	if !required {
 		result.GoType = "*bool"
 		result.ZeroValue = "nil"
 	}
@@ -347,12 +348,7 @@ func (g *Generator) generateBooleanType(schema *oapi.Schema) (*TypeInfo, error) 
 	return result, nil
 }
 
-func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string) (*TypeInfo, error) {
-	var requiredOverride *oapi.Required
-	if schema.Required != nil && len(schema.Required.Multi) == 0 && !schema.Required.Single {
-		requiredOverride = &oapi.Required{Single: false}
-	}
-
+func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string, required bool) (*TypeInfo, error) {
 	var result TypeInfo
 	if schema.Name != "" {
 		result.Name = schema.Name
@@ -378,17 +374,16 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 	result.Struct = &StructType{}
 
 	for _, field := range schema.Properties {
-		if requiredOverride != nil && field.Value.Required == nil {
-			field.Value.Required = requiredOverride
-		}
+		fieldRequired := slices.Contains(schema.Required, field.Name)
 
-		fieldType, err := g.resolveSchema(field.Value, util.CamelToPascalCase(field.Name), true)
+		fieldType, err := g.resolveSchema(field.Value, result.Name+util.CamelToPascalCase(field.Name),
+			field.Value.Type != "object", fieldRequired)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve field type: %w", err)
 		}
 
 		fieldGoType := fieldType.GoType
-		if fieldType.Enum != nil && requiredOverride != nil && requiredOverride.IsOptional() {
+		if fieldType.Enum != nil && !fieldRequired {
 			fieldGoType = "*" + fieldGoType
 		}
 
@@ -401,13 +396,13 @@ func (g *Generator) generateObjectType(schema *oapi.Schema, nameOverride string)
 	return &result, nil
 }
 
-func (g *Generator) generateArrayType(schema *oapi.Schema, name string) (*TypeInfo, error) {
+func (g *Generator) generateArrayType(schema *oapi.Schema, name string, required bool) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = name
 	result.ZeroValue = "nil"
 	result.Array = &ArrayType{}
 
-	itemType, err := g.resolveSchema(schema.Items, name+"Item", false)
+	itemType, err := g.resolveSchema(schema.Items, name+"Item", false, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve array type: %w", err)
 	}
@@ -427,14 +422,14 @@ func (g *Generator) generateArrayType(schema *oapi.Schema, name string) (*TypeIn
 	return &result, nil
 }
 
-func (g *Generator) generateAllOfType(schema []*oapi.AnySchema, name string) (*TypeInfo, error) {
+func (g *Generator) generateAllOfType(schema []*oapi.AnySchema, name string, required bool) (*TypeInfo, error) {
 	var result TypeInfo
 	result.Name = "allOf"
 	result.ZeroValue = "nil"
 	result.Struct = &StructType{}
 
 	for _, subSchema := range schema {
-		subType, err := g.resolveSchema(subSchema, "anonymous", true)
+		subType, err := g.resolveSchema(subSchema, "anonymous", true, required)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve allOf type: %w", err)
 		}

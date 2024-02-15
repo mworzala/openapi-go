@@ -1,7 +1,5 @@
 package oapi
 
-import "gopkg.in/yaml.v3"
-
 type Spec struct {
 	Version    string             `yaml:"openapi"` // Required
 	Info       *Info              `yaml:"info"`    // Required
@@ -109,15 +107,15 @@ type (
 		AllOf     []*AnySchema `yaml:"allOf"`
 	}
 	Schema struct {
-		Type     string    `yaml:"type"` //todo enum
-		Required *Required `yaml:"required"`
-		Name     string    `yaml:"x-name"`
+		Type string `yaml:"type"` //todo enum
+		Name string `yaml:"x-name"`
 
 		// Primitive only
 		Format string   `yaml:"format"`
 		Enum   []string `yaml:"enum"`
 
 		// Objects
+		Required             []string            `yaml:"required"`
 		Properties           MapSlice[AnySchema] `yaml:"properties"`
 		AdditionalProperties bool                `yaml:"additionalProperties"`
 
@@ -125,33 +123,6 @@ type (
 		Items *AnySchema `yaml:"items"`
 	}
 )
-
-type Required struct {
-	Single bool
-	Multi  []string
-}
-
-func (r *Required) IsOptional() bool {
-	return len(r.Multi) == 0 && !r.Single
-}
-
-func (r *Required) UnmarshalYAML(node *yaml.Node) error {
-	if node.Kind == yaml.ScalarNode {
-		var single bool
-		if err := node.Decode(&single); err != nil {
-			return err
-		}
-		r.Single = single
-		return nil
-	}
-
-	var multi []string
-	if err := node.Decode(&multi); err != nil {
-		return err
-	}
-	r.Multi = multi
-	return nil
-}
 
 //
 // Common

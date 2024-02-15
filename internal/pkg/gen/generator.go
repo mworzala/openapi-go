@@ -156,7 +156,7 @@ func (g *Generator) GenSpecSingle(name string, spec *oapi.Spec) {
 				continue // Already generated, skip
 			}
 
-			ti, err := g.resolveSchema(schema.Value, schema.Name, false)
+			ti, err := g.resolveSchema(schema.Value, schema.Name, false, true)
 			if err != nil {
 				panic(fmt.Errorf("failed to generate schema %s: %w", schema.Name, err))
 			}
