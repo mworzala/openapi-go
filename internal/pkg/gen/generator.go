@@ -50,9 +50,10 @@ type Generator struct {
 	specName   string
 	apiVersion string
 	// Set of schemas to be emitted (by absolute path from file, eg #/components/schemas/MySchema)
-	schemas    map[string]*SchemaTemplate
-	schemas2   oapi.MapSlice[TypeInfo]
-	operations []*OperationTemplate
+	schemas      map[string]*SchemaTemplate
+	schemas2     oapi.MapSlice[TypeInfo]
+	operations   []*OperationTemplate
+	extraImports []string
 }
 
 func New() (*Generator, error) {
@@ -176,7 +177,7 @@ func (g *Generator) flush() {
 	// Write the server to server file
 	serverFile := path.Join(g.pwd, fmt.Sprintf("%s_server.gen.go", g.specName))
 	serverContext := &ServerTemplate{
-		Package: g.apiVersion, Name: g.specName,
+		Package: g.apiVersion, Name: g.specName, ExtraImports: g.extraImports,
 		BasePath: fmt.Sprintf("/%s%s", g.apiVersion, basePath), Operations: g.operations, UseFx: true}
 	if err := execTemplateToFile(g.serverTemplate, serverContext, serverFile); err != nil {
 		panic(fmt.Errorf("failed to execute server template: %w", err))
@@ -189,7 +190,7 @@ func (g *Generator) flush() {
 	}
 
 	modelFile := path.Join(g.pwd, fmt.Sprintf("%s_model.gen.go", g.specName))
-	context := &ModelTemplate{Package: g.apiVersion, Schemas: schemas}
+	context := &ModelTemplate{Package: g.apiVersion, ExtraImports: g.extraImports, Schemas: schemas}
 	if err := execTemplateToFile(g.modelTemplate, context, modelFile); err != nil {
 		panic(fmt.Errorf("failed to execute model template: %w", err))
 	}
@@ -199,6 +200,7 @@ func (g *Generator) flush() {
 	g.specName = ""
 	g.schemas = make(map[string]*SchemaTemplate)
 	g.operations = nil
+	g.extraImports = nil
 
 	// Some fun stats
 	println("Generated", serverContext.BasePath)

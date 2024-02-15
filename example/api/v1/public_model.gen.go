@@ -1,7 +1,11 @@
 // Code generated with openapi-go DO NOT EDIT.
 package v1
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type GetMapWorldAbc struct {
 	Page *int `json:"page"`
@@ -15,7 +19,7 @@ type MapManualTriggerWebhookInner struct {
 type MapManualTriggerWebhook struct {
 	Sender    string                        `json:"sender"`
 	OrgId     string                        `json:"orgId"`
-	MapId     string                        `json:"mapId"`
+	MapId     uuid.UUID                     `json:"mapId"`
 	Timestamp time.Time                     `json:"timestamp"`
 	Inner     *MapManualTriggerWebhookInner `json:"inner"`
 }

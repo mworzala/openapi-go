@@ -1,8 +1,9 @@
 package gen
 
 type ModelTemplate struct {
-	Package string
-	Schemas []*TypeInfo
+	Package      string
+	ExtraImports []string
+	Schemas      []*TypeInfo
 }
 
 type SchemaTemplate struct {

@@ -236,7 +236,10 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string,
 		result.GoType = "[]byte"
 		result.ZeroValue = "nil"
 	case "uuid":
-		panic("todo should be uuid")
+		if !slices.Contains(g.extraImports, "github.com/google/uuid") {
+			g.extraImports = append(g.extraImports, "github.com/google/uuid")
+		}
+		result.GoType = "uuid.UUID"
 	default:
 		if schema.Format != "" {
 			println(fmt.Sprintf("unsupported string format: %s", schema.Format))

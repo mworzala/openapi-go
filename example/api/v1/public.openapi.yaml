@@ -99,6 +99,7 @@ components:
         mapId:
           description: The ID of the map
           type: string
+          format: uuid
         timestamp:
           description: The timestamp of the event in iso format
           type: string

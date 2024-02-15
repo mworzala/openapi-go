@@ -7,6 +7,9 @@ import (
     oapi_rt "github.com/mworzala/openapi-go/pkg/oapi-rt"
     "go.uber.org/zap"
     {{ if .UseFx }}"go.uber.org/fx"{{ end }}
+    {{ range .ExtraImports }}
+    "{{.}}"
+    {{ end }}
 )
 
 type {{ CamelToPascal .Name }}Server interface {

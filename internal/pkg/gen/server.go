@@ -10,8 +10,9 @@ import (
 )
 
 type ServerTemplate struct {
-	Package string
-	Name    string
+	Package      string
+	Name         string
+	ExtraImports []string
 
 	BasePath   string
 	Operations []*OperationTemplate

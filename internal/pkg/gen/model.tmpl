@@ -1,7 +1,12 @@
 // Code generated with openapi-go DO NOT EDIT.
 package {{ .Package }}
 
-import "github.com/mworzala/openapi-go/pkg/oapi-rt"
+import (
+    "github.com/mworzala/openapi-go/pkg/oapi-rt"
+    {{ range .ExtraImports }}
+    "{{.}}"
+    {{ end }}
+)
 
 {{- range .Schemas }}
 {{ $name := .Name }}
