@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	oapi_rt "github.com/mworzala/openapi-go/pkg/oapi-rt"
@@ -14,7 +15,7 @@ import (
 
 type PublicServer interface {
 	GetTestPlainResp(ctx context.Context) (string, error)
-	GetMapWorld(ctx context.Context, id string, abc string, accept string, req *MapManualTriggerWebhook) (*GetMapWorldResponse, *MapManualTriggerWebhook, error)
+	GetMapWorld(ctx context.Context, id string, abc int, accept string, req *MapManualTriggerWebhook) (*GetMapWorldResponse, *MapManualTriggerWebhook, error)
 }
 
 type PublicServerWrapper struct {
@@ -49,6 +50,9 @@ func (sw *PublicServerWrapper) Apply(r chi.Router) {
 }
 
 func (sw *PublicServerWrapper) GetTestPlainResp(w http.ResponseWriter, r *http.Request) {
+	var err error
+	_ = err // Sometimes we don't use it but need that not to be an error
+
 	// Read Parameters
 
 	var handler http.Handler
@@ -81,9 +85,18 @@ func (sw *PublicServerWrapper) GetTestPlainResp(w http.ResponseWriter, r *http.R
 }
 
 func (sw *PublicServerWrapper) GetMapWorld(w http.ResponseWriter, r *http.Request) {
+	var err error
+	_ = err // Sometimes we don't use it but need that not to be an error
+
 	// Read Parameters
 
-	abc := r.URL.Query().Get("abc")
+	abcStr := r.URL.Query().Get("abc")
+	var abc int
+	abc, err = strconv.Atoi(abcStr)
+	if err != nil {
+		oapi_rt.WriteGenericError(w, err)
+		return
+	}
 
 	accept := r.Header.Get("accept")
 
@@ -91,7 +104,6 @@ func (sw *PublicServerWrapper) GetMapWorld(w http.ResponseWriter, r *http.Reques
 
 	// Read Body
 	var body MapManualTriggerWebhook
-	var err error
 	if err = json.NewDecoder(r.Body).Decode(&body); err != nil {
 		oapi_rt.WriteGenericError(w, err)
 		return

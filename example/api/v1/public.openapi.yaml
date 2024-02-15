@@ -35,7 +35,7 @@ paths:
           in: query
           required: true
           schema:
-            type: string
+            type: integer
         - name: accept
           in: header
           description: >-

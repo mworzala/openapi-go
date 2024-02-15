@@ -55,6 +55,9 @@ func (sw *{{ $WRAPPER_CLASS }}) Apply(r chi.Router) {
 
 {{ range .Operations }}
 func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter, r *http.Request) {
+    var err error
+    _ = err // Sometimes we don't use it but need that not to be an error
+
     // Read Parameters
     {{ range .QueryParams }}
     {{ if .StructGoType }}
@@ -66,9 +69,11 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
     {{ else if .NumberGoType }}
     {{ .Name }}Str := r.URL.Query().Get("{{ .Name }}")
     {{- if eq .NumberGoType "int" }}
-    {{ .Name }}, err := strconv.Atoi({{ .Name }}Str)
+    var {{ .Name }} int
+    {{ .Name }}, err = strconv.Atoi({{ .Name }}Str)
     {{ else }}
-    {{ .Name }}, err := strconv.ParseFloat({{ .Name }}Str, 64)
+    var {{ .Name }} float64
+    {{ .Name }}, err = strconv.ParseFloat({{ .Name }}Str, 64)
     {{ end -}}
     if err != nil {
         oapi_rt.WriteGenericError(w, err)
@@ -90,7 +95,6 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
     {{- with .Body }}
     // Read Body
     var body {{ NoPtr .GoType }}
-    var err error
     {{ if .IsRaw }}
     if body, err = io.ReadAll(r.Body); err != nil {
     {{- else -}}
