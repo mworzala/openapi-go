@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	oapi_rt "github.com/mworzala/openapi-go/pkg/oapi-rt"
@@ -13,7 +14,7 @@ import (
 )
 
 type PublicServer interface {
-	GetTestPlainResp(ctx context.Context) (string, error)
+	GetTestPlainResp(ctx context.Context, testing int) (string, error)
 	GetMapWorld(ctx context.Context, id string, abc *GetMapWorldAbc, accept string, req *MapManualTriggerWebhook) (*GetMapWorldResponse, *MapManualTriggerWebhook, error)
 }
 
@@ -54,11 +55,21 @@ func (sw *PublicServerWrapper) GetTestPlainResp(w http.ResponseWriter, r *http.R
 
 	// Read Parameters
 
+	testingStr := r.URL.Query().Get("testing")
+	var testing int
+	if testingStr != "" {
+		testing, err = strconv.Atoi(testingStr)
+		if err != nil {
+			oapi_rt.WriteGenericError(w, err)
+			return
+		}
+	}
+
 	var handler http.Handler
 	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := oapi_rt.NewContext(r.Context(), r)
 
-		code200, err := sw.handler.GetTestPlainResp(ctx)
+		code200, err := sw.handler.GetTestPlainResp(ctx, testing)
 		if err != nil {
 			oapi_rt.WriteGenericError(w, err)
 			return

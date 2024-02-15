@@ -73,14 +73,17 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
     {{ .Name }}Str := r.URL.Query().Get("{{ .Name }}")
     {{- if eq .NumberGoType "int" }}
     var {{ .Name }} int
-    {{ .Name }}, err = strconv.Atoi({{ .Name }}Str)
+    if {{ .Name }}Str != "" {
+        {{ .Name }}, err = strconv.Atoi({{ .Name }}Str)
     {{ else }}
     var {{ .Name }} float64
-    {{ .Name }}, err = strconv.ParseFloat({{ .Name }}Str, 64)
+    if {{ .Name }}Str != "" {
+        {{ .Name }}, err = strconv.ParseFloat({{ .Name }}Str, 64)
     {{ end -}}
-    if err != nil {
-        oapi_rt.WriteGenericError(w, err)
-        return
+        if err != nil {
+            oapi_rt.WriteGenericError(w, err)
+            return
+        }
     }
     {{ else }}
     {{ .Name }} := r.URL.Query().Get("{{ .Name }}")

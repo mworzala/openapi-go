@@ -6,6 +6,12 @@ paths:
   /test/plain_resp:
     get:
       operationId: getTestPlainResp
+      parameters:
+        - name: testing
+          in: query
+          required: true
+          schema:
+            type: integer
       responses:
         '200':
           description: abc
