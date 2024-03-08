@@ -102,6 +102,9 @@ func (g *Generator) genOperation(path, method string, op *oapi.Operation) (*Oper
 			}
 			result.QueryParams = append(result.QueryParams, tmpl)
 
+			if param.Schema == nil {
+				param.Schema = &oapi.Schema{Type: "string"}
+			}
 			switch param.Schema.Type {
 			case "string":
 				// Already handled by above
