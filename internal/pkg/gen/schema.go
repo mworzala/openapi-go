@@ -235,6 +235,9 @@ func (g *Generator) generateStringType(schema *oapi.Schema, nameOverride string,
 	case "binary":
 		result.GoType = "[]byte"
 		result.ZeroValue = "nil"
+	case "raw":
+		result.GoType = "json.RawMessage"
+		result.ZeroValue = "nil"
 	case "uuid":
 		if !slices.Contains(g.extraImports, "github.com/google/uuid") {
 			g.extraImports = append(g.extraImports, "github.com/google/uuid")
