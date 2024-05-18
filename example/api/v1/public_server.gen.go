@@ -14,7 +14,7 @@ import (
 )
 
 type PublicServer interface {
-	GetTestPlainResp(ctx context.Context, testing int) (string, error)
+	GetTestPlainResp(ctx context.Context, testing int) error
 	GetMapWorld(ctx context.Context, id string, abc *GetMapWorldAbc, accept string, req *MapManualTriggerWebhook) (*GetMapWorldResponse, *MapManualTriggerWebhook, error)
 }
 
@@ -69,24 +69,13 @@ func (sw *PublicServerWrapper) GetTestPlainResp(w http.ResponseWriter, r *http.R
 	handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := oapi_rt.NewContext(r.Context(), r)
 
-		code200, err := sw.handler.GetTestPlainResp(ctx, testing)
+		err := sw.handler.GetTestPlainResp(ctx, testing)
 		if err != nil {
 			oapi_rt.WriteGenericError(w, err)
 			return
 		}
 
-		if code200 != "" {
-			w.Header().Set("content-type", "text/plain")
-			w.WriteHeader(200)
-			_, _ = w.Write([]byte(code200))
-
-			return
-		}
-
-		// !! UNDEFINED EMPTY BEHAVIOR !!
-		// Set `x-type: empty` on a response to define this behavior.
-		sw.log.Errorw("empty response")
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(302)
 	})
 	for _, middleware := range sw.middlewares {
 		handler = middleware.Run(handler)

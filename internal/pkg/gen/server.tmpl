@@ -101,6 +101,9 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
     {{- with .Body }}
     // Read Body
     var body {{ NoPtr .GoType }}
+    {{ if eq .GoType "io.Reader" }}
+    body = r.Body
+    {{ else }}
     {{ if .IsRaw }}
     if body, err = io.ReadAll(r.Body); err != nil {
     {{- else -}}
@@ -109,6 +112,7 @@ func (sw *{{ $WRAPPER_CLASS }}) {{ CamelToPascal .Name }}(w http.ResponseWriter,
         oapi_rt.WriteGenericError(w, err)
         return
     }
+    {{ end }}
     {{ end }}
     var handler http.Handler
     handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

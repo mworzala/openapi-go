@@ -13,12 +13,9 @@ paths:
           schema:
             type: integer
       responses:
-        '200':
+        '302':
+          x-type: empty
           description: abc
-          content:
-            text/plain:
-              schema:
-                type: string
   /maps/{id}/world:
     get:
       operationId: getMapWorld
